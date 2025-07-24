@@ -13,28 +13,33 @@ export default async function handler(
     return; // Request was handled (OPTIONS request)
   }
 
+  console.log('Users API called:', {
+    method: req.method,
+    headers: {
+      authorization: req.headers.authorization,
+      cookie: req.headers.cookie
+    }
+  });
+
   if (req.method === "GET") {
     // Verify JWT token
     const userInfo = authenticateToken(req);
     
+    console.log('Token validation result:', userInfo);
+    
     if (!userInfo) {
+      console.log('Authentication failed - no valid token');
       return res.status(401).json(errorResponse("Unauthorized - Invalid or missing token"));
     }
 
-    // Find the user data and filter out sensitive information
-    const user = userData.find(u => u.id.toString() === userInfo.userId);
+    // Return all users but filter out sensitive data
+    const safeUserData = userData.map(user => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { secret, ...safeUser } = user;
+      return safeUser;
+    });
     
-    if (!user) {
-      return res.status(404).json(errorResponse("User not found"));
-    }
-
-    // Remove sensitive data before sending to frontend
-    const { secret, ...safeUserData } = user;
-    
-    res.status(200).json(successResponse({
-      ...safeUserData,
-      username: userInfo.username,
-    }));
+    res.status(200).json(successResponse(safeUserData));
   } else {
     res.status(404).json(errorResponse("Route not found"));
   }
